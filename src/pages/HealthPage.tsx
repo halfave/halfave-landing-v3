@@ -364,31 +364,47 @@ function NeighborhoodList({ data, label }: { data: typeof NEIGHBORHOODS_TOP; lab
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 export default function HealthPage() {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "NYC Building Health Score Report 2026",
+    "description": "Analysis of 34,169 NYC rental buildings across all five boroughs — scoring compliance, HPD violations, DOB violations, and operational health.",
+    "url": "https://halfave.co/health",
+    "creator": { "@type": "Organization", "name": "Half Ave", "url": "https://halfave.co" },
+    "dateModified": "2026-03-01",
+    "spatialCoverage": "New York City, NY",
+    "variableMeasured": ["Building Health Score", "HPD Violations", "DOB Violations", "ECB Violations"],
+    "keywords": ["NYC building violations", "NYC HPD violations", "NYC building compliance", "NYC rental building health", "building health score NYC", "NYC property management", "NYC DOB violations", "NYC ECB violations"]
+  };
+
   return (
     <>
       <style>{CSS}</style>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <div className="hp-root">
 
         {/* ── HERO ── */}
         <div className="hp-hero">
           <div className="hp-hero-inner">
             <div className="hp-eyebrow">
-              Half Ave · NYC Building Health Index
+              Half Ave · NYC Building Health Score · 2026 Report
               <span className="hp-eyebrow-divider" />
             </div>
             <h1 className="hp-headline">
-              What 34,169 NYC buildings reveal about property health
+              NYC Building Health Score Report: What 34,169 Rental Buildings Reveal About Property Compliance
             </h1>
             <p className="hp-subhead">
-              A data-driven look at how rental buildings perform across boroughs, vintages, and sizes —
-              based on violations, compliance history, and operational signals.
+              A data-driven analysis of NYC rental building compliance, HPD violations, DOB violations, and property health scores across all five boroughs — Manhattan, Brooklyn, Queens, the Bronx, and Staten Island.
             </p>
             <p className="hp-hero-cta">
               Curious where your building ranks?{' '}
               <a href="https://halfave.co">Check your building →</a>
             </p>
             <div className="hp-datestamp">
-              Updated March 2026 · Based on 34,169 NYC rental buildings · Sources: HPD, DOB, ECB
+              Updated March 2026 · Analysis of 34,169 NYC rental buildings · Data sources: NYC HPD (Housing Preservation & Development), NYC DOB (Department of Buildings), ECB (Environmental Control Board)
             </div>
           </div>
         </div>
@@ -444,14 +460,14 @@ export default function HealthPage() {
           {/* ── SECTION 01: BY GEOGRAPHY ── */}
           <div className="hp-section">
             <div className="hp-section-label">Section 01</div>
-            <div className="hp-section-title">By Geography</div>
+            <h2 className="hp-section-title">NYC Building Health by Borough and Neighborhood</h2>
             <p className="hp-section-intro">
               Location is one of the strongest predictors of building health — with some neighborhoods
               operating in entirely different conditions than others just miles away.
             </p>
 
             <ChartCard
-              title="Average Health Score by Borough"
+              title="NYC Building Health Score by Borough: Manhattan, Brooklyn, Queens, Bronx, Staten Island"
               takeaway={
                 <><strong>The Bronx trails all other boroughs by a significant margin.</strong>{' '}
                 Its average score of 58.3 is 21 points below Staten Island — a gap driven by higher
@@ -471,7 +487,7 @@ export default function HealthPage() {
             </ChartCard>
 
             <ChartCard
-              title="Neighborhood Rankings — Best & Worst (by ZIP)"
+              title="Best and Worst NYC Neighborhoods for Building Health (by ZIP Code)"
               takeaway={
                 <><strong>The gap between top and bottom neighborhoods exceeds 40 points.</strong>{' '}
                 East Elmhurst (Queens) averages 89.1; Crown Heights (Brooklyn) averages 46.7 —
@@ -494,7 +510,7 @@ export default function HealthPage() {
           {/* ── SECTION 02: BY BUILDING AGE ── */}
           <div className="hp-section">
             <div className="hp-section-label">Section 02</div>
-            <div className="hp-section-title">By Building Age</div>
+            <h2 className="hp-section-title">NYC Building Health by Construction Decade</h2>
             <p className="hp-section-intro">
               Contrary to expectations, newer buildings don't always outperform older stock.
               Building age interacts with maintenance culture, ownership structure, and renovation
@@ -502,7 +518,7 @@ export default function HealthPage() {
             </p>
 
             <ChartCard
-              title="Average Health Score by Construction Decade"
+              title="NYC Building Health Score by Construction Era and Decade"
               takeaway={
                 <><strong>Mid-century buildings underperform both older and newer stock.</strong>{' '}
                 Buildings from 1950–1989 show higher variability and lower average scores — likely
@@ -528,14 +544,14 @@ export default function HealthPage() {
           {/* ── SECTION 03: BY BUILDING SIZE ── */}
           <div className="hp-section">
             <div className="hp-section-label">Section 03</div>
-            <div className="hp-section-title">By Building Size</div>
+            <h2 className="hp-section-title">NYC Building Health by Unit Count and Size</h2>
             <p className="hp-section-intro">
               Scale introduces complexity, but also operational structure — which can stabilize
               performance. The relationship between size and health is not linear.
             </p>
 
             <ChartCard
-              title="Average Health Score by Unit Count"
+              title="NYC Building Health Score by Unit Count and Building Size"
               takeaway={
                 <><strong>Small buildings (2–5 units) score highest on average.</strong>{' '}
                 Mid-size buildings (20–99 units) show the most strain — large enough to accumulate
@@ -565,7 +581,7 @@ export default function HealthPage() {
           {/* ── WHY IT MATTERS ── */}
           <div className="hp-why">
             <div className="hp-section-label" style={{ marginBottom: 4 }}>Why This Matters</div>
-            <div className="hp-section-title" style={{ marginBottom: 0 }}>Most building risk is invisible until it's expensive</div>
+            <h2 className="hp-section-title" style={{ marginBottom: 0 }}>Most NYC Building Risk Is Invisible Until It's Expensive</h2>
             <div className="hp-why-grid">
               {[
                 { icon: '🔍', title: 'Hidden exposure',       desc: 'Open violations and compliance gaps often go unnoticed until they trigger fines or emergency repairs.' },
@@ -587,7 +603,7 @@ export default function HealthPage() {
             <div className="hp-section-label">Methodology</div>
             <div className="hp-method-grid">
               {[
-                { key: 'Buildings analyzed', val: '34,169 NYC rental properties' },
+                { key: 'Buildings analyzed', val: '34,169 NYC rental properties (all five boroughs)' },
                 { key: 'Data sources',        val: 'HPD, DOB, ECB open datasets'  },
                 { key: 'Score range',         val: '0–100 (higher = healthier)'   },
                 { key: 'Updated',             val: 'March 2026'                   },
@@ -607,10 +623,9 @@ export default function HealthPage() {
           {/* ── SOFT BRIDGE ── */}
           <div className="hp-bridge">
             <div className="hp-bridge-text">
-              <div className="hp-bridge-title">Want to improve your building's performance?</div>
+              <div className="hp-bridge-title">Want to know your NYC building's health score?</div>
               <div className="hp-bridge-desc">
-                Half Ave helps owners turn these signals into action — across leasing, compliance,
-                and maintenance. Start by seeing where your building stands.
+                Half Ave gives NYC property owners and managers their building's compliance score, open violations, inspection status, and peer comparison — instantly. Start by looking up your building's BIN.
               </div>
             </div>
             <a href="https://halfave.co" className="hp-bridge-cta">Learn more →</a>

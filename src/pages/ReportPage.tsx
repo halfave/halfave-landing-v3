@@ -1004,7 +1004,7 @@ export default function ReportPage(_props: ReportPageProps) {
       setRiskScore({
         health_score: sc.healthScore,
         risk_score: sc.healthScore ?? 0,
-        risk_bucket: sc.riskBucket ?? "Watch",
+        risk_bucket: sc.riskBucket ?? "High Risk",
         percentile: sc.percentile ?? 0,
         top_drivers: undefined,
       });
@@ -1101,7 +1101,7 @@ export default function ReportPage(_props: ReportPageProps) {
   const rs = riskScore;
   const pct = rs?.percentile ?? 0;
   const score = rs?.health_score ?? rs?.risk_score ?? 0;
-  const bucket = score >= 80 ? "Healthy" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Watch";
+  const bucket = score >= 80 ? "Top Tier" : score >= 60 ? "Average / Stable" : score >= 40 ? "Watch Zone" : "High Risk";
 
   const openViolations = features?.open_violations ?? violations.filter((v) => v.is_open).length;
 

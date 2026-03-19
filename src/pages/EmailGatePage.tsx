@@ -23,7 +23,7 @@ export default function EmailGatePage({ building, onUnlock, onBack }: Props) {
   const [sent, setSent] = useState(false)
 
   const score = Math.round((building as any).health_score ?? building.risk_score ?? 0)
-  const bucket = score >= 80 ? 'Healthy' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Watch';
+  const bucket = score >= 80 ? 'Top Tier' : score >= 60 ? 'Average / Stable' : score >= 40 ? 'Watch Zone' : 'High Risk';
   const bucketColor = score >= 80 ? '#3a7d5e' : score >= 60 ? '#c9a227' : '#c4533a';
   const addr = building.address || 'this building'
 
@@ -35,19 +35,37 @@ export default function EmailGatePage({ building, onUnlock, onBack }: Props) {
     }
     setLoading(true)
     setError(null)
-    // Edge Function handles both lead insert and email send
-    fetch('https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/send-report-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: trimmed,
-        building_address: building.address,
-        risk_score: building.risk_score,
-        percentile: building.percentile ?? null,
-        risk_bucket: building.risk_bucket,
-        bin: building.bin ? String(building.bin) : null,
-      }),
-    }).catch(err => console.warn('Email send failed:', err))
+
+    const bin = building.bin ? String(building.bin) : null
+
+    // Fire bin-lookup + email in background — don't block UX
+    const sendEmail = async () => {
+      let violations = (window as any).__halfaveBldg?.violations ?? null
+      if (bin) {
+        try {
+          const res = await fetch(`https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/bin-lookup?bin=${bin}`)
+          if (res.ok) {
+            const fresh = await res.json()
+            if (fresh?.violations) violations = fresh.violations
+          }
+        } catch (e) { /* fall back to cached */ }
+      }
+      fetch('https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/send-report-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trimmed,
+          building_address: building.address,
+          risk_score: building.risk_score,
+          percentile: building.percentile ?? null,
+          risk_bucket: building.risk_bucket,
+          bin,
+          violations,
+          borough: (building as any).borough ?? (window as any).__halfaveBldg?.building?.borough ?? null,
+        }),
+      }).catch(err => console.warn('Email send failed:', err))
+    }
+    sendEmail() // fire and forget
 
     setLoading(false)
     setSent(true)
@@ -85,7 +103,7 @@ export default function EmailGatePage({ building, onUnlock, onBack }: Props) {
 
         {/* Score */}
         <div style={s.scoreBlock}>
-          <div style={s.scoreEyebrow} className="eg-mono">Building Health Index</div>
+          <div style={s.scoreEyebrow} className="eg-mono">NYC Building Health Score</div>
           <div style={{ ...s.scoreNum, color: bucketColor }}>{score}</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: bucketColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{bucket}</div>
           <div style={s.scorePct}>Ranks in the {building.percentile ?? '—'}th percentile citywide</div>
