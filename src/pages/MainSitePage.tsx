@@ -5,12 +5,13 @@ import type { Building, HalfaveWindow } from '../types'
 interface Props {
   onGetReport: (building: Building) => void
   onGoRisk?: () => void
+  onGoHealth?: () => void
 }
 
 // Window type is augmented via HalfaveWindow in ../types
 // No local declare global needed — use (window as HalfaveWindow).__halfaveBldg
 
-export default function MainSitePage({ onGetReport, onGoRisk }: Props) {
+export default function MainSitePage({ onGetReport, onGoRisk, onGoHealth }: Props) {
   useEffect(() => {
     function patchLinks() {
       // Intercept risk.html links
@@ -26,23 +27,17 @@ export default function MainSitePage({ onGetReport, onGoRisk }: Props) {
         })
       }
 
-      // Inject "NYC Building Health Score" nav link if not already present
-      const nav = document.querySelector<HTMLElement>('nav ul.nav-links')
-      if (nav && !document.getElementById('halfave-health-nav-link')) {
-        const li = document.createElement('li')
-        const a = document.createElement('a')
-        a.id = 'halfave-health-nav-link'
-        a.href = '/health'
-        a.textContent = 'NYC Building Health Score'
-        a.style.cssText = 'font-size:0.85rem;color:inherit;text-decoration:none;opacity:0.8;'
-        a.addEventListener('click', (e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          window.history.pushState({}, '', '/health')
-          window.dispatchEvent(new PopStateEvent('popstate'))
+      // Intercept /health links
+      if (onGoHealth) {
+        document.querySelectorAll<HTMLAnchorElement>('a[href="/health"]').forEach(link => {
+          if (link.dataset.healthPatched) return
+          link.dataset.healthPatched = '1'
+          link.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onGoHealth()
+          })
         })
-        li.appendChild(a)
-        nav.insertBefore(li, nav.firstChild)
       }
 
       // Intercept "Unlock Full Building Report" button

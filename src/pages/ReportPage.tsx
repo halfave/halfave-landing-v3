@@ -45,7 +45,7 @@ interface BuildingFeatures {
 
 interface Violation {
   id: string;
-  agency: "HPD" | "DOB" | "ECB";
+  agency: "HPD" | "DOB" | "ECB" | "Sanitation" | "DOHMH";
   source: string;
   severity?: string;
   violation_type?: string;
@@ -686,7 +686,12 @@ function ViolationRow({ v, expanded, onToggle }: {
           {v.violation_type || v.description?.slice(0, 60) || "–"}
         </td>
         <td style={{ color: "var(--slate)" }}>{fmtDate(v.issue_date)}</td>
-        <td style={{ textAlign: "right" }}>
+        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+          {v.balance_due != null && v.balance_due > 0 && (
+            <span style={{ color: "var(--risk-red)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, marginRight: 6 }}>
+              {fmtCurrency(v.balance_due)}
+            </span>
+          )}
           {hasDetail && (
             <span style={{ color: "var(--slate)", fontSize: 10 }}>
               {expanded ? "▲" : "▼"}
@@ -752,7 +757,7 @@ function ViolationRow({ v, expanded, onToggle }: {
 
 
 // ─── ViolationTabContent ─────────────────────────────────────────────────────
-function ViolationTabContent({ violations, agency }: { violations: Violation[]; agency: "HPD" | "DOB" | "ECB" }) {
+function ViolationTabContent({ violations, agency }: { violations: Violation[]; agency: "HPD" | "DOB" | "ECB" | "Sanitation" | "DOHMH" }) {
   const [sortKey, setSortKey] = useState<"severity" | "issue_date" | "violation_type">("severity");
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -812,16 +817,19 @@ function ComplianceSection({ violations, devices, co }: {
   co: any;
 }) {
   const openByAgency = (t: string) => violations.filter(v => v.is_open && v.agency === t);
-  const violTabs: ("HPD"|"DOB"|"ECB")[] = ["HPD","DOB","ECB"];
-  const overdueBoilers   = devices.boilers.filter((b: any) => b.missed_years > 1 && (b.status||'').toLowerCase().includes('accept'));
+  const violTabs: ("HPD"|"DOB"|"ECB"|"Sanitation"|"DOHMH")[] = ["HPD","DOB","ECB","Sanitation","DOHMH"];
+  const OVERDUE_CUTOFF = new Date('2025-01-01');
+  const isOverdue = (dateStr: string | null | undefined) => !dateStr || new Date(dateStr) < OVERDUE_CUTOFF;
+  const overdueBoilers   = devices.boilers.filter((b: any) => isOverdue(b.last_insp) && (b.status||'').toLowerCase().includes('accept'));
   const hasBoilers   = overdueBoilers.length > 0;
-  const overdueElevators = devices.elevators.filter((e: any) => e.missed_years > 1 && (e.status||'').toUpperCase().includes('ACTIVE'));
+  const overdueElevators = devices.elevators.filter((e: any) =>
+    ((isOverdue(e.cat1_date)) || (isOverdue(e.pvt_date))) && (e.status||'').toUpperCase().includes('ACTIVE'));
   const hasElevators = overdueElevators.length > 0;
   const hasCo        = co && !co.is_final;
   const hasInspections = hasBoilers || hasElevators || hasCo;
 
   const firstViolTab = violTabs.find(t => openByAgency(t).length > 0);
-  const [activeTab, setActiveTab] = useState<"HPD"|"DOB"|"ECB"|"Inspections">(
+  const [activeTab, setActiveTab] = useState<"HPD"|"DOB"|"ECB"|"Sanitation"|"DOHMH"|"Inspections">(
     firstViolTab ?? "Inspections"
   );
 
@@ -846,7 +854,7 @@ function ComplianceSection({ violations, devices, co }: {
         )}
       </div>
 
-      {(activeTab === "HPD" || activeTab === "DOB" || activeTab === "ECB") && (
+      {(activeTab === "HPD" || activeTab === "DOB" || activeTab === "ECB" || activeTab === "Sanitation" || activeTab === "DOHMH") && (
         <ViolationTabContent violations={violations} agency={activeTab} />
       )}
 
@@ -880,7 +888,7 @@ function ComplianceSection({ violations, devices, co }: {
               </div>
               <div className="rp-device-grid">
                 {overdueBoilers.map((b: any, i: number) => {
-                  const overdue = b.missed_years > 1;
+                  const overdue = isOverdue(b.last_insp);
                   return (
                     <div className="rp-device-row" key={i}>
                       <span className="rp-device-id">{b.id}</span>
@@ -901,14 +909,16 @@ function ComplianceSection({ violations, devices, co }: {
               </div>
               <div className="rp-device-grid">
                 {overdueElevators.map((e: any, i: number) => {
-                  const overdue = e.missed_years > 1;
+                  const catOverdue = isOverdue(e.cat1_date);
+                  const pvtOverdue = isOverdue(e.pvt_date);
+                  const overdue = catOverdue || pvtOverdue;
                   return (
                     <div className="rp-device-row" key={i}>
                       <span className="rp-device-id">#{e.id}</span>
                       <span className={`rp-device-status ${overdue ? "warn" : "ok"}`}>{overdue ? "Overdue" : "Current"}</span>
                       <div className="rp-device-date">
-                        <div style={{ color: e.cat1_date ? (overdue ? "var(--risk-red)" : "var(--slate)") : "var(--risk-amber)" }}>CAT1: {e.cat1_date ? fmtDate(e.cat1_date) : "None on record"}</div>
-                        <div style={{ color: e.pvt_date ? (overdue ? "var(--risk-red)" : "var(--slate)") : "var(--risk-amber)" }}>PVT: {e.pvt_date ? fmtDate(e.pvt_date) : "None on record"}</div>
+                        <div style={{ color: e.cat1_date ? (catOverdue ? "var(--risk-red)" : "var(--slate)") : "var(--risk-amber)" }}>CAT1: {e.cat1_date ? fmtDate(e.cat1_date) : "None on record"}</div>
+                        <div style={{ color: e.pvt_date ? (pvtOverdue ? "var(--risk-red)" : "var(--slate)") : "var(--risk-amber)" }}>PVT: {e.pvt_date ? fmtDate(e.pvt_date) : "None on record"}</div>
                       </div>
                     </div>
                   );
@@ -946,7 +956,7 @@ function ComplianceSection({ violations, devices, co }: {
 
 
 // ─── Main ReportPage ──────────────────────────────────────────────────────────
-interface ReportPageProps {
+export interface ReportPageProps {
   building?: Building;
   email?: string;
   onReset?: () => void;
@@ -1033,6 +1043,8 @@ export default function ReportPage(_props: ReportPageProps) {
         ...flattenAgency([...(viols.hpd?.open ?? []),  ...(viols.hpd?.closed ?? [])],  "HPD"),
         ...flattenAgency([...(viols.dob?.open ?? []),  ...(viols.dob?.closed ?? [])],  "DOB"),
         ...flattenAgency([...(viols.ecb?.open ?? []),  ...(viols.ecb?.closed ?? [])],  "ECB"),
+        ...flattenAgency([...(viols.sanitation?.open ?? []), ...(viols.sanitation?.closed ?? [])], "Sanitation"),
+        ...flattenAgency([...(viols.dohmh?.open ?? []),     ...(viols.dohmh?.closed ?? [])],     "DOHMH"),
       ];
 
       setViolations(allViolations);
@@ -1459,10 +1471,7 @@ export default function ReportPage(_props: ReportPageProps) {
                       ))}
                       {/* This building — dot on its size line at its decade */}
                       {myYear>=1900&&myYear<=2020&&myScore>0&&(()=>{
-                        const myDecade = Math.round(myYear/10)*10;
-                        const snapDecade = Math.min(2020, Math.max(1900, myDecade));
-                        const lineRow = SIZE_DATA.find(r=>r.decade===snapDecade&&r.size_band===mySize);
-                        const dotY = lineRow ? PT+yS(lineRow.avg_score) : PT+yS(myScore);
+                        const dotY = PT+yS(myScore);
                         const color = SIZE_COLORS[mySize];
                         return (
                           <>
@@ -1616,7 +1625,7 @@ export default function ReportPage(_props: ReportPageProps) {
               <div className="rp-section">
                 <div className="rp-section-title">The Top 10 List</div>
                 <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
-                  Ranked by average building health score across NYC rental properties (min. 50 buildings per ZIP code)
+                  Ranked by average building health score across NYC rental properties, reflecting compliance performance, violations, and inspection outcomes (minimum 50 buildings per ZIP code)
                 </div>
                 {(() => {
                   const LeaderboardList = ({ data, label }: { data: typeof top10; label: string }) => (
