@@ -808,7 +808,7 @@ const css = `/* root visible */
       max-width: 1200px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 1.8fr 1fr 1fr 1fr;
+      grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr;
       gap: 3rem;
       padding-bottom: 48px;
     }
@@ -2077,6 +2077,18 @@ const bodyHTML = `<!-- NAV -->
         <ul>
           <li><a href="#">Privacy Policy</a></li>
           <li><a href="#">Terms of Service</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <div class="footer-col-title" style="font-size:0.78rem;letter-spacing:0.01em;">NYC Building Health Scores</div>
+        <ul>
+          <li><a href="/zip-rankings/manhattan">Manhattan</a></li>
+          <li><a href="/zip-rankings/brooklyn">Brooklyn</a></li>
+          <li><a href="/zip-rankings/queens">Queens</a></li>
+          <li><a href="/zip-rankings/bronx">Bronx</a></li>
+          <li><a href="/zip-rankings/staten-island">Staten Island</a></li>
+          <li><a href="/health">Health Report</a></li>
         </ul>
       </div>
     </div>

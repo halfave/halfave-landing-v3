@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/sitemap.xml",            "destination": "https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/sitemap" },
+    { "source": "/buildings/:slug",        "destination": "/index.html" },
+    { "source": "/zip-rankings/:borough",  "destination": "/index.html" },
+    { "source": "/(.*)",                   "destination": "/index.html" }
+  ]
 }
