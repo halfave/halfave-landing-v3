@@ -263,7 +263,7 @@ export default function ZipRankingsPage({ borough, onBack }: Props) {
                 {bldgs.map(b => (
                   <div key={b.slug} style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderBottom: '1px solid rgba(17,30,48,0.04)', gap: 12 }}>
                     <div style={{ flex: 1, fontSize: 13, color: '#111e30', fontWeight: 500 }}>{b.address}</div>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: scoreColor(b.score), background: scoreBg(b.score), padding: '1px 7px', borderRadius: 4, fontWeight: 700, flexShrink: 0 }}>{b.score}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: scoreColor(b.score), background: scoreBg(b.score), padding: '1px 7px', borderRadius: 4, fontWeight: 700, flexShrink: 0, visibility: (b.score ? 'visible' : 'hidden') as 'visible' | 'hidden' }}>{b.score || ''}</span>
                     <a
                       href={`/buildings/${b.slug}`}
                       style={{ fontSize: 11, color: meta.color, textDecoration: 'none', fontWeight: 600, flexShrink: 0, borderBottom: `1px solid ${meta.color}40` }}
