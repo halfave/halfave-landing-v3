@@ -2079,8 +2079,9 @@ const bodyHTML = `<!-- NAV -->
       <div class="footer-col">
         <div class="footer-col-title">Legal</div>
         <ul>
-          <li><a href="#">Privacy Policy</a></li>
-          <li><a href="#">Terms of Service</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+          <li><a href="/sms-consent">SMS Consent</a></li>
         </ul>
       </div>
 
