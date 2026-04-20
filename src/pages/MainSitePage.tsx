@@ -40,6 +40,23 @@ export default function MainSitePage({ onGetReport, onGoRisk, onGoHealth }: Prop
         })
       }
 
+      // Intercept /privacy, /sms-consent, and /terms links (footer legal links)
+      document.querySelectorAll<HTMLAnchorElement>(
+        'a[href="/privacy"], a[href="/sms-consent"], a[href="/terms"]'
+      ).forEach(link => {
+        if (link.dataset.legalPatched) return
+        link.dataset.legalPatched = '1'
+        link.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const href = link.getAttribute('href')
+          if (href) {
+            window.history.pushState({}, '', href)
+            window.dispatchEvent(new PopStateEvent('popstate'))
+          }
+        })
+      })
+
       // Intercept "Unlock Full Building Report" button
       document.querySelectorAll<HTMLAnchorElement>('a[href="#"]').forEach(btn => {
         if (btn.dataset.patched) return
@@ -86,7 +103,7 @@ export default function MainSitePage({ onGetReport, onGoRisk, onGoHealth }: Prop
     const observer = new MutationObserver(patchLinks)
     observer.observe(document.body, { childList: true, subtree: true })
     return () => observer.disconnect()
-  }, [onGetReport, onGoRisk])
+  }, [onGetReport, onGoRisk, onGoHealth])
 
   return <MainSite />
 }
