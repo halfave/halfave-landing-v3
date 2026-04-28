@@ -129,6 +129,49 @@ export default function SmsConsentPage({ onBack }: Props) {
             </p>
           </Section>
 
+          <H2>Tenant intake form</H2>
+          <Section>
+            <p>
+              During onboarding, tenants receive this intake form from their property manager.
+              The form collects basic profile and emergency contact information, and includes the
+              SMS consent disclosure and a separate checkbox so consent can be granted or
+              declined independently of the rest of the form.
+            </p>
+            <a
+              href="/halfave-tenant-intake-form.pdf"
+              download
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.625rem 1rem',
+                background: '#111e30',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                marginTop: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              Download fillable form (PDF) ↓
+            </a>
+            <div style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(17,30,48,0.06)',
+            }}>
+              <img
+                src="/halfave-tenant-intake-form.png"
+                alt="Half/Ave Tenant Intake Form preview"
+                style={{ width: '100%', display: 'block' }}
+              />
+            </div>
+          </Section>
+
           <H2>How to opt out</H2>
           <Callout>
             Reply <strong>STOP</strong> to any message at any time to unsubscribe. You will
