@@ -21,7 +21,7 @@ interface Props { onGoTool?: () => void; onGoBlog?: () => void; onGoPost?: (slug
 type Msg = { who: 'maya' | 'user'; text: string }
 
 const SEED: Msg[] = [
-  { who: 'maya', text: "Hi Jordan, this is Maya with The Lockwood management team. I can help with rent, your lease, a repair, or renters insurance. What's going on?" },
+  { who: 'maya', text: "Hi Jordan, this is Maya with The Orchard management team. I can help with rent, your lease, a repair, or renters insurance. What's going on?" },
 ]
 
 // Public demo endpoint (Supabase Edge Function). Holds the API key + Maya persona server-side.
@@ -180,7 +180,7 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
         <div className="maya-section-head">
           <span className="section-label">Put it to the test</span>
           <h2 className="section-title">Text Maya like a tenant would.</h2>
-          <p className="section-sub">You're playing Jordan, a tenant at The Lockwood. Ask what you'd really ask: "what's my balance," "when does my lease end," "my heat is out." Live preview on a fictional account, capped at 10 messages.</p>
+          <p className="section-sub">You're a tenant at The Orchard, a building Maya runs. Text her anything you'd actually text your property manager.</p>
         </div>
         <div className="maya-phone">
           <div className="maya-phone-screen">
@@ -200,7 +200,7 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
               <div className="maya-avatar">M</div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>Maya</div>
-                <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>Assistant Property Manager</div>
+                <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>Assistant Property Manager</div>
               </div>
             </div>
             <div ref={scrollRef} className="maya-phone-msgs">
@@ -772,8 +772,8 @@ const CSS = `
 .maya-section-head .section-sub { margin: 0 auto; }
 
 /* PHONE */
-.maya-phone { width: 340px; max-width: 100%; margin: 0 auto; background: #0a1322; border-radius: 44px; padding: 10px; box-shadow: 0 30px 60px rgba(7,16,30,0.3), inset 0 0 0 2px rgba(255,255,255,0.06); }
-.maya-phone-screen { background: var(--cream); border-radius: 36px; overflow: hidden; display: flex; flex-direction: column; height: 560px; position: relative; }
+.maya-phone { width: 340px; max-width: 100%; margin: 0 auto; background: #0a1322; border-radius: 48px; padding: 16px; box-shadow: 0 30px 60px rgba(7,16,30,0.3), inset 0 0 0 2px rgba(255,255,255,0.06); }
+.maya-phone-screen { background: var(--cream); border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; height: 560px; position: relative; }
 .maya-statusbar { background: var(--white); height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
 .maya-time { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--navy); letter-spacing: 0.02em; }
 .maya-notch { position: absolute; left: 50%; transform: translateX(-50%); top: 0; width: 120px; height: 20px; background: #0a1322; border-radius: 0 0 16px 16px; }
