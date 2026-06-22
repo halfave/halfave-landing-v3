@@ -26,6 +26,8 @@ const SEED: Msg[] = [
 
 // Public demo endpoint (Supabase Edge Function). Holds the API key + Maya persona server-side.
 const MAYA_DEMO_URL = 'https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/maya-demo'
+// Stable id for this page load, so demo artifacts from one conversation group together.
+const DEMO_SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 // ── nav scroll behavior + Cal.com embed loader (mirrors MainSite) ──
 function useChrome() {
@@ -95,7 +97,7 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
       const res = await fetch(MAYA_DEMO_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, sessionId: DEMO_SESSION_ID }),
       })
       const data = await res.json()
       const reply = (data && data.reply) ||

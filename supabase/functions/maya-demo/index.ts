@@ -1,23 +1,38 @@
 // supabase/functions/maya-demo/index.ts
 //
-// Public, sandbox Maya demo chat. Holds the Anthropic API key + Maya persona
-// server-side. No tenant/ledger data. Guards: message cap, per-message length
-// cap, max_tokens cap, IP rate limit, CORS locked to halfave.co.
+// Public Maya demo chat for the Half Ave marketing site.
 //
-// Deploy:   supabase functions deploy maya-demo --no-verify-jwt
-// Secret:   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// - Uses the PRODUCTION Maya prompt, loaded live from chatbot_config (id=1),
+//   so it always tracks prod. The building name is swapped to the demo
+//   building and a fictional resident account is appended.
+// - Demo conversations generate REAL artifacts, but quarantined to the demo
+//   building (id 9001, archived) and tagged source='public_demo':
+//     * maintenance flow that completes -> work_orders row
+//     * Maya hits a knowledge gap        -> knowledge_gaps row
+//   So you can review what people ask and Maya gets smarter, with zero
+//   contamination of live operational queues.
+// - Guards: message cap, per-message length cap, max_tokens cap, IP rate
+//   limit, CORS locked to halfave.co.
+//
+// Deploy:  supabase functions deploy maya-demo --no-verify-jwt
+// Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 // (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // === CONFIG ===
-// IMPORTANT: set this to the SAME model Maya uses in production.
-const MODEL = "claude-sonnet-4-6";
-const MAX_USER_MESSAGES = 10;   // hard cap per conversation (mirrors the UI)
-const MAX_CHARS = 600;          // per message
-const MAX_TOKENS = 300;         // bounds cost per reply
-const RATE_LIMIT = 40;          // requests per IP per window
-const RATE_WINDOW_MIN = 60;     // window length in minutes
+const MODEL = "claude-sonnet-4-6"; // set to the model Maya uses in production
+const MAX_USER_MESSAGES = 10;      // hard cap per conversation (mirrors the UI)
+const MAX_CHARS = 600;             // per message
+const MAX_TOKENS = 320;            // bounds cost per reply
+const RATE_LIMIT = 40;             // requests per IP per window
+const RATE_WINDOW_MIN = 60;        // window length in minutes
+
+const DEMO_BUILDING_ID = 9001;     // Milano Brooklyn (archived demo building)
+const DEMO_BUILDING_NAME = "Milano Brooklyn";
+const DEMO_UNIT = "3C";
+const DEMO_RESIDENT = "Jordan Reyes";
+const PROD_BUILDING_NAME = "The Astor"; // name in the production prompt, swapped out
 
 const ALLOWED_ORIGINS = [
   "https://halfave.co",
@@ -25,33 +40,29 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5173",
 ];
 
-const SYSTEM_PROMPT = `You are Maya, an AI assistant property manager for a NYC residential building, texting with a tenant. You work for the building's management team and act on the owner's behalf, while staying respectful and human.
+// Appended to the production prompt for the public demo only.
+const DEMO_ADDENDUM = `
 
-PERSONA
-- You are the reliable member of the management team: you follow up on late rent, track promises to pay, chase renters insurance compliance, take maintenance requests, and answer lease and renewal questions.
-- Tone: warm, plain-spoken, brief. Text like a real person on the management team would. Short messages. No corporate filler.
-- You are firm but never cold. You are the landlord's advocate, but you treat the tenant with respect.
+===== THIS IS A PUBLIC DEMO =====
+You are running on the Half Ave marketing site so a prospective building owner can try you out. The resident account below is FICTIONAL demo data. Treat it as real and answer from it naturally. If someone directly asks whether this is a demo or whether you are automated, you may briefly confirm it is a live demo of Maya on a sample account, then keep helping in character. Do not volunteer that it is a demo otherwise.
 
-THE SETTING (this is a demo with a fictional account, treat it as real)
-- Building: The Orchard, a 25-unit rent-stabilized building at 118 Orchard Street, Lower East Side, Manhattan. Managed by Hartfield Residential. Super on site is Dmitri; office hours Mon-Fri 9-5.
-- The person texting you is the tenant of record: Jordan Reyes, Unit 3C, a 1-bedroom. Lease term runs Aug 1 to Jul 31, current monthly rent $2,450. Lease ends in about 6 weeks; a renewal offer is being prepared and is not out yet.
-- Their ledger right now: $1,200 past due (last month's balance). No payment promise currently on file. They have paid on time the prior 5 months.
-- Renters insurance: their policy LAPSED last month. The lease requires active coverage. The building's master policy covers the structure only, not their belongings.
-- Rent payment: through the Hartfield resident portal (portal.hartfieldres.com), or check by mail to the office. Late fee of $50 applies if rent is not paid by the 5th.
-- Maintenance: you open work orders and Dmitri or a vendor handles them. Typical non-emergency turnaround is 2 to 3 business days. Heat, hot water, gas, and flooding are emergencies, handled same day.
+===== THE FICTIONAL DEMO ACCOUNT (treat as real, you pulled it live) =====
+- Building: ${DEMO_BUILDING_NAME}, a 25-unit rent-stabilized building at 215 Court Street, Brooklyn.
+- Resident of record (the person texting you): ${DEMO_RESIDENT}, Unit ${DEMO_UNIT}, a 1-bedroom.
+- Lease: runs Aug 1 to Jul 31, rent $2,450/month. Lease ends in about 6 weeks; a renewal offer is being prepared and is not out yet.
+- Ledger: $1,200 past due from last month. No payment promise on file. Paid on time the prior 5 months.
+- Renters insurance: their policy LAPSED last month. The lease requires active coverage. The building master policy covers the structure only, not their belongings.
+- Rent payment: through the resident portal, or check by mail to the office.
+When the resident asks about THEIR account, lease, balance, or insurance, answer from these facts as if pulled live. For anything not covered here, hedge and say you'll check with the team.
 
-USING THE SETTING
-- When the tenant asks about THEIR account, lease, balance, or insurance, answer using the facts above as if you pulled them live. Example: "You're showing $1,200 past due from last month. When could you get that in?"
-- Stay internally consistent. Do not contradict the facts above. If asked something not covered (e.g. a specific neighbor, a different unit), say you'd check with the office.
-- You may reference these specific numbers and names freely. They are fictional demo data, so there is no privacy concern.
+===== MACHINE TAGS (DEMO ONLY, INTERNAL) =====
+At the very END of your reply, when one of these is true, append exactly one tag on its own line. The tag is stripped before the resident sees it, so never reference it.
+- If you have just told the resident you logged or opened a maintenance work order, append: [[WORKORDER: short issue summary | category | priority(low|medium|high)]]
+- If you are hedging because you do not know the answer (saying you'll check with the team and get back to them), append: [[KNOWLEDGEGAP: short topic summary]]
+Only append a tag when it genuinely applies to THIS reply. Never append more than one. Never explain the tag.`;
 
-HARD RULES
-- For genuine hardship, crisis, disputes, or anything needing real judgment, say you'll loop in a human on the team. Do not try to resolve those yourself.
-- You are built around NYC housing law (rent stabilization, voucher timing like CityFHEPS/Section 8, demand-notice sequences) but you do not give legal advice; you flag when something needs a person.
-- Never use em dashes. Use periods or commas instead.
-- Keep replies to 1-3 short sentences unless the tenant asks for detail.
-
-If the tenant is just testing you or asks "are you a bot", be honest: you're software that works for the building, available any hour, and you bring in a person for anything that needs real judgment. You can add that this is a demo on a fictional account so they can try you out.`;
+// Fallback prompt if chatbot_config can't be read (keeps the demo alive).
+const FALLBACK_PROMPT = `You are Maya, a warm, professional member of the property management team at ${DEMO_BUILDING_NAME}. Keep replies under 3 sentences, plain text, no markdown, no em dashes. For maintenance: acknowledge, ask one clarifying question if needed, confirm entry permission, then say you've logged the work order (never promise a timeline). If you don't know something, say you'll check with the team and get back to them.` + DEMO_ADDENDUM;
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -68,6 +79,46 @@ async function sha256(s: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Cache the prod prompt in-instance so we don't hit the DB every message.
+let cachedPrompt: string | null = null;
+let cachedAt = 0;
+async function getSystemPrompt(supabase: ReturnType<typeof createClient>): Promise<string> {
+  const now = Date.now();
+  if (cachedPrompt && now - cachedAt < 5 * 60 * 1000) return cachedPrompt;
+  try {
+    const { data } = await supabase
+      .from("chatbot_config")
+      .select("system_prompt, global_policies")
+      .eq("id", 1)
+      .single();
+    if (data?.system_prompt) {
+      let p = data.system_prompt as string;
+      if (data.global_policies) p += "\n\n===== BUILDING & POLICY REFERENCE =====\n" + data.global_policies;
+      p = p.split(PROD_BUILDING_NAME).join(DEMO_BUILDING_NAME);
+      cachedPrompt = p + DEMO_ADDENDUM;
+      cachedAt = now;
+      return cachedPrompt;
+    }
+  } catch (e) {
+    console.error("prompt load failed, using fallback", e);
+  }
+  return FALLBACK_PROMPT;
+}
+
+// Pull a [[TAG: ...]] off the end of Maya's reply. Returns cleaned reply + parsed tag.
+function extractTag(reply: string): { clean: string; workorder?: string[]; gap?: string } {
+  const woMatch = reply.match(/\[\[WORKORDER:\s*([^\]]+)\]\]/i);
+  const kgMatch = reply.match(/\[\[KNOWLEDGEGAP:\s*([^\]]+)\]\]/i);
+  const clean = reply
+    .replace(/\[\[WORKORDER:[^\]]*\]\]/ig, "")
+    .replace(/\[\[KNOWLEDGEGAP:[^\]]*\]\]/ig, "")
+    .trim();
+  const out: { clean: string; workorder?: string[]; gap?: string } = { clean };
+  if (woMatch) out.workorder = woMatch[1].split("|").map((s) => s.trim());
+  if (kgMatch) out.gap = kgMatch[1].trim();
+  return out;
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const headers = { ...corsHeaders(origin), "Content-Type": "application/json" };
@@ -80,16 +131,14 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => null);
     const messages = body?.messages;
+    const sessionId: string = (body?.sessionId && String(body.sessionId).slice(0, 64)) || "anon";
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "bad request" }), { status: 400, headers });
     }
 
-    // sanitize + clamp
     const clean = messages
       .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
       .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
-
-    // must start with a user turn for the Anthropic API
     while (clean.length && clean[0].role === "assistant") clean.shift();
     if (clean.length === 0) {
       return new Response(JSON.stringify({ error: "no messages" }), { status: 400, headers });
@@ -103,23 +152,21 @@ Deno.serve(async (req) => {
       }), { headers });
     }
 
-    // rate limit by IP
-    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
-    const salt = Deno.env.get("DEMO_IP_SALT") ?? "halfave-demo-salt";
-    const ipHash = await sha256(ip + salt);
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // rate limit by IP
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+    const salt = Deno.env.get("DEMO_IP_SALT") ?? "halfave-demo-salt";
+    const ipHash = await sha256(ip + salt);
     const since = new Date(Date.now() - RATE_WINDOW_MIN * 60 * 1000).toISOString();
     const { count } = await supabase
       .from("maya_demo_usage")
       .select("*", { count: "exact", head: true })
       .eq("ip_hash", ipHash)
       .gte("created_at", since);
-
     if ((count ?? 0) >= RATE_LIMIT) {
       return new Response(JSON.stringify({
         reply: "Looks like you've put me through my paces. Book a call to see Maya live in your own buildings.",
@@ -128,7 +175,8 @@ Deno.serve(async (req) => {
     }
     await supabase.from("maya_demo_usage").insert({ ip_hash: ipHash });
 
-    // call Anthropic
+    const systemPrompt = await getSystemPrompt(supabase);
+
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -139,7 +187,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: clean,
       }),
     });
@@ -150,11 +198,48 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
-    const reply = (data.content ?? [])
+    const rawText = (data.content ?? [])
       .filter((b: { type: string }) => b.type === "text")
       .map((b: { text: string }) => b.text)
       .join("\n")
       .trim() || "Sorry, I didn't catch that. Could you say it another way?";
+
+    const { clean: reply, workorder, gap } = extractTag(rawText);
+    const lastUser = [...clean].reverse().find((m) => m.role === "user")?.content ?? "";
+
+    // Write demo artifacts, quarantined to the demo building. Best effort.
+    if (workorder) {
+      const [issue, category, priority] = workorder;
+      supabase.from("work_orders").insert({
+        building_id: DEMO_BUILDING_ID,
+        unit_number: DEMO_UNIT,
+        tenant_name: DEMO_RESIDENT,
+        issue: issue || "Demo maintenance request",
+        description: lastUser,
+        category: category || null,
+        priority: (priority || "medium").toLowerCase(),
+        status: "open",
+        caller: DEMO_RESIDENT,
+        source: "public_demo",
+        source_id: sessionId,
+        called_date: new Date().toISOString().slice(0, 10),
+      }).then(({ error }: { error: unknown }) => { if (error) console.error("work_order insert", error); });
+    }
+    if (gap) {
+      supabase.from("knowledge_gaps").insert({
+        resident_message: lastUser,
+        maya_holding_response: reply,
+        phone_from: "demo:" + sessionId,
+        phone_to: "demo",
+        building_id: DEMO_BUILDING_ID,
+        building_name: DEMO_BUILDING_NAME,
+        resident_name: DEMO_RESIDENT,
+        unit_number: DEMO_UNIT,
+        gap_type: "demo",
+        topic_summary: gap,
+        status: "pending",
+      }).then(({ error }: { error: unknown }) => { if (error) console.error("knowledge_gap insert", error); });
+    }
 
     return new Response(JSON.stringify({ reply }), { headers });
   } catch (e) {
