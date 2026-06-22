@@ -4,33 +4,77 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111e30" />
 
-    <!-- Default title + meta (overridden per-page by React) -->
-    <title>Half Ave — NYC Building Health Score</title>
-    <meta name="description" content="Look up any NYC rental building's health score. Instant compliance data — HPD violations, DOB violations, inspection status, and peer comparison across 34,000+ buildings." />
+    <!-- Default title + meta (overridden per-page by React via useMeta) -->
+    <title>Maya — AI Property Manager for NYC | Half Ave</title>
+    <meta name="description" content="Maya is an AI property manager for NYC owner-operators. She follows up on late rent, tracks promises to pay, and never lets balances slip through the cracks. Built around NYC housing law. $3.95/unit/month." />
 
-    <!-- Open Graph (for social sharing + AI crawlers) -->
+    <!-- Open Graph (social sharing + AI crawlers) -->
     <meta property="og:type"        content="website" />
+    <meta property="og:site_name"   content="Half Ave" />
     <meta property="og:url"         content="https://halfave.co/" />
-    <meta property="og:title"       content="Half Ave — NYC Building Health Score" />
-    <meta property="og:description" content="Instant NYC building compliance data. HPD violations, DOB violations, inspection status, and health scores for 34,000+ NYC rental buildings." />
+    <meta property="og:title"       content="Maya — AI Property Manager for NYC | Half Ave" />
+    <meta property="og:description" content="The most reliable member of your property management team. Maya follows up on late rent, tracks promises to pay, and never lets balances slip through the cracks." />
     <meta property="og:image"       content="https://halfave.co/og-image.png" />
+    <meta property="og:image:alt"   content="Maya, an AI property manager for NYC buildings." />
+    <meta property="og:locale"      content="en_US" />
 
     <!-- Twitter card -->
     <meta name="twitter:card"        content="summary_large_image" />
-    <meta name="twitter:title"       content="Half Ave — NYC Building Health Score" />
-    <meta name="twitter:description" content="Instant NYC building compliance data. HPD violations, DOB violations, inspection status, and health scores for 34,000+ NYC rental buildings." />
+    <meta name="twitter:title"       content="Maya — AI Property Manager for NYC | Half Ave" />
+    <meta name="twitter:description" content="The most reliable member of your property management team. Maya chases late rent, tracks promises to pay, and follows up every time." />
     <meta name="twitter:image"       content="https://halfave.co/og-image.png" />
 
     <!-- Canonical -->
     <link rel="canonical" href="https://halfave.co/" />
 
     <!-- Keywords (still read by some crawlers and AI indexers) -->
-    <meta name="keywords" content="NYC building health score, HPD violations NYC, DOB violations NYC, NYC building compliance, NYC rental building violations, building inspection NYC, ECB violations NYC, NYC property management, Half Ave" />
+    <meta name="keywords" content="AI property manager NYC, AI property management, rent collection software NYC, arrears collection, renters insurance compliance, NYC rent stabilization, CityFHEPS, Section 8 rent, property management automation, Half Ave, Maya" />
 
     <!-- Authorship + indexing -->
     <meta name="author"  content="Half Ave" />
     <meta name="robots"  content="index, follow" />
+
+    <!-- Structured data: Organization + WebSite + Product -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://halfave.co/#org",
+          "name": "Half Ave",
+          "legalName": "Half Ave Company LLC",
+          "url": "https://halfave.co/",
+          "logo": "https://halfave.co/og-image.png",
+          "email": "hello@halfave.co",
+          "areaServed": "New York City",
+          "sameAs": ["https://www.instagram.com/mayatextsnyc"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://halfave.co/#website",
+          "url": "https://halfave.co/",
+          "name": "Half Ave",
+          "publisher": { "@id": "https://halfave.co/#org" }
+        },
+        {
+          "@type": "Product",
+          "name": "Maya",
+          "description": "AI property manager for NYC owner-operators. Handles arrears and rent collection, renters insurance compliance, maintenance follow-up, and more, built around NYC housing law.",
+          "brand": { "@id": "https://halfave.co/#org" },
+          "url": "https://halfave.co/",
+          "offers": {
+            "@type": "Offer",
+            "price": "3.95",
+            "priceCurrency": "USD",
+            "description": "Per unit, per month. No minimum units, no setup fees, unlimited conversations."
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
