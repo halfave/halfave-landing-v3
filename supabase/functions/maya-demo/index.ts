@@ -3,14 +3,11 @@
 // Public Maya demo chat for the Half Ave marketing site.
 //
 // - Uses the PRODUCTION Maya prompt, loaded live from chatbot_config (id=1),
-//   so it always tracks prod. The building name is swapped to the demo
-//   building and a fictional resident account is appended.
-// - Demo conversations generate REAL artifacts, but quarantined to the demo
-//   building (id 9001, archived) and tagged source='public_demo':
-//     * maintenance flow that completes -> work_orders row
-//     * Maya hits a knowledge gap        -> knowledge_gaps row
-//   So you can review what people ask and Maya gets smarter, with zero
-//   contamination of live operational queues.
+//   so it always tracks prod. Building name swapped to the demo building and a
+//   fictional resident account appended.
+// - Logs every exchange (what the visitor said + Maya's reply) to
+//   maya_demo_messages, so you can see what people ask. No work orders, no
+//   knowledge-gap writes, nothing touches live ops.
 // - Guards: message cap, per-message length cap, max_tokens cap, IP rate
 //   limit, CORS locked to halfave.co.
 //
@@ -28,7 +25,6 @@ const MAX_TOKENS = 320;            // bounds cost per reply
 const RATE_LIMIT = 40;             // requests per IP per window
 const RATE_WINDOW_MIN = 60;        // window length in minutes
 
-const DEMO_BUILDING_ID = 9001;     // Milano Brooklyn (archived demo building)
 const DEMO_BUILDING_NAME = "Milano Brooklyn";
 const DEMO_UNIT = "3C";
 const DEMO_RESIDENT = "Jordan Reyes";
@@ -47,22 +43,36 @@ const DEMO_ADDENDUM = `
 You are running on the Half Ave marketing site so a prospective building owner can try you out. The resident account below is FICTIONAL demo data. Treat it as real and answer from it naturally. If someone directly asks whether this is a demo or whether you are automated, you may briefly confirm it is a live demo of Maya on a sample account, then keep helping in character. Do not volunteer that it is a demo otherwise.
 
 ===== THE FICTIONAL DEMO ACCOUNT (treat as real, you pulled it live) =====
-- Building: ${DEMO_BUILDING_NAME}, a 25-unit rent-stabilized building at 215 Court Street, Brooklyn.
+- Building: ${DEMO_BUILDING_NAME}, a 25-unit rent-stabilized building at 440 Stuyvesant Avenue, Stuyvesant Heights, Brooklyn.
 - Resident of record (the person texting you): ${DEMO_RESIDENT}, Unit ${DEMO_UNIT}, a 1-bedroom.
 - Lease: runs Aug 1 to Jul 31, rent $2,450/month. Lease ends in about 6 weeks; a renewal offer is being prepared and is not out yet.
 - Ledger: $1,200 past due from last month. No payment promise on file. Paid on time the prior 5 months.
 - Renters insurance: their policy LAPSED last month. The lease requires active coverage. The building master policy covers the structure only, not their belongings.
 - Rent payment: through the resident portal, or check by mail to the office.
-When the resident asks about THEIR account, lease, balance, or insurance, answer from these facts as if pulled live. For anything not covered here, hedge and say you'll check with the team.
 
-===== MACHINE TAGS (DEMO ONLY, INTERNAL) =====
-At the very END of your reply, when one of these is true, append exactly one tag on its own line. The tag is stripped before the resident sees it, so never reference it.
-- If you have just told the resident you logged or opened a maintenance work order, append: [[WORKORDER: short issue summary | category | priority(low|medium|high)]]
-- If you are hedging because you do not know the answer (saying you'll check with the team and get back to them), append: [[KNOWLEDGEGAP: short topic summary]]
-Only append a tag when it genuinely applies to THIS reply. Never append more than one. Never explain the tag.`;
+===== BUILDING INFORMATION (answer directly from these facts) =====
+- Address: 440 Stuyvesant Avenue, Stuyvesant Heights, Brooklyn. Closest trains are the A/C at Utica Avenue and the J at Halsey Street.
+- Size: a small, walk-up-style boutique building, 25 units, 6 stories.
+- Super: Marco, on site Monday through Friday. For after-hours emergencies (no heat or hot water, gas, flood, fire), residents call the 24/7 emergency line and 911 if it is life-safety.
+- Elevator: yes, one elevator serving all floors.
+- WiFi: there is no building-wide WiFi. Residents set up their own internet; the building is wired for Verizon Fios and Spectrum.
+- Packages: there is no front desk or package room, so packages are left in the vestibule inside the locked first door. For anything valuable, residents can request signature on delivery or use a nearby parcel locker.
+- Laundry: a small laundry room in the basement with two washers and two dryers, card-operated, open 6am to 11pm.
+- Gym: the building does not have a gym.
+- Lounge / common space: the building does not have a residents' lounge or roof deck.
+- Pets: cats and dogs are allowed with management approval; there is a 2-pet limit per unit and a weight guideline of about 50 lbs per dog. Aggressive breeds are not permitted. There is no pet rent.
+- Bike storage: yes, a small bike room in the basement, first come first served, free for residents.
+- Trash and recycling: chute on each floor for trash; recycling bins are in the basement.
+- Heat / hot water: building-provided, included in rent.
+- Smoking: the building is smoke-free in all units and common areas.
+
+When the resident asks about THEIR account, lease, balance, or insurance, answer from these facts as if pulled live. When they ask about the building (wifi, gym, packages, super, elevator, pets, laundry, bikes, trash), answer from the BUILDING INFORMATION above. For anything not covered here, hedge and say you'll check with the team.
+
+===== DEMO OVERRIDE (this supersedes earlier rules) =====
+For this demo only, the BUILDING INFORMATION and DEMO ACCOUNT sections above are your confirmed source of truth. You MAY state that the building does or does not have something when it is listed above (for example, you can say there is no gym, no lounge, and no building WiFi, because those are confirmed here). This overrides the general rule about not inferring absence from silence and the rule about escalating out-of-building questions, but ONLY for facts explicitly listed above. For anything genuinely not listed, still hedge and offer to check with the team.`;
 
 // Fallback prompt if chatbot_config can't be read (keeps the demo alive).
-const FALLBACK_PROMPT = `You are Maya, a warm, professional member of the property management team at ${DEMO_BUILDING_NAME}. Keep replies under 3 sentences, plain text, no markdown, no em dashes. For maintenance: acknowledge, ask one clarifying question if needed, confirm entry permission, then say you've logged the work order (never promise a timeline). If you don't know something, say you'll check with the team and get back to them.` + DEMO_ADDENDUM;
+const FALLBACK_PROMPT = `You are Maya, a warm, professional member of the property management team at ${DEMO_BUILDING_NAME}. Keep replies under 3 sentences, plain text, no markdown, no em dashes. For maintenance: acknowledge, ask one clarifying question if needed, confirm entry permission, then say you've logged the request (never promise a timeline). If you don't know something, say you'll check with the team and get back to them.` + DEMO_ADDENDUM;
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -103,20 +113,6 @@ async function getSystemPrompt(supabase: ReturnType<typeof createClient>): Promi
     console.error("prompt load failed, using fallback", e);
   }
   return FALLBACK_PROMPT;
-}
-
-// Pull a [[TAG: ...]] off the end of Maya's reply. Returns cleaned reply + parsed tag.
-function extractTag(reply: string): { clean: string; workorder?: string[]; gap?: string } {
-  const woMatch = reply.match(/\[\[WORKORDER:\s*([^\]]+)\]\]/i);
-  const kgMatch = reply.match(/\[\[KNOWLEDGEGAP:\s*([^\]]+)\]\]/i);
-  const clean = reply
-    .replace(/\[\[WORKORDER:[^\]]*\]\]/ig, "")
-    .replace(/\[\[KNOWLEDGEGAP:[^\]]*\]\]/ig, "")
-    .trim();
-  const out: { clean: string; workorder?: string[]; gap?: string } = { clean };
-  if (woMatch) out.workorder = woMatch[1].split("|").map((s) => s.trim());
-  if (kgMatch) out.gap = kgMatch[1].trim();
-  return out;
 }
 
 Deno.serve(async (req) => {
@@ -198,48 +194,19 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
-    const rawText = (data.content ?? [])
+    const reply = (data.content ?? [])
       .filter((b: { type: string }) => b.type === "text")
       .map((b: { text: string }) => b.text)
       .join("\n")
       .trim() || "Sorry, I didn't catch that. Could you say it another way?";
 
-    const { clean: reply, workorder, gap } = extractTag(rawText);
+    // Log what the visitor said and what Maya replied. Best effort, never blocks the reply.
     const lastUser = [...clean].reverse().find((m) => m.role === "user")?.content ?? "";
-
-    // Write demo artifacts, quarantined to the demo building. Best effort.
-    if (workorder) {
-      const [issue, category, priority] = workorder;
-      supabase.from("work_orders").insert({
-        building_id: DEMO_BUILDING_ID,
-        unit_number: DEMO_UNIT,
-        tenant_name: DEMO_RESIDENT,
-        issue: issue || "Demo maintenance request",
-        description: lastUser,
-        category: category || null,
-        priority: (priority || "medium").toLowerCase(),
-        status: "open",
-        caller: DEMO_RESIDENT,
-        source: "public_demo",
-        source_id: sessionId,
-        called_date: new Date().toISOString().slice(0, 10),
-      }).then(({ error }: { error: unknown }) => { if (error) console.error("work_order insert", error); });
-    }
-    if (gap) {
-      supabase.from("knowledge_gaps").insert({
-        resident_message: lastUser,
-        maya_holding_response: reply,
-        phone_from: "demo:" + sessionId,
-        phone_to: "demo",
-        building_id: DEMO_BUILDING_ID,
-        building_name: DEMO_BUILDING_NAME,
-        resident_name: DEMO_RESIDENT,
-        unit_number: DEMO_UNIT,
-        gap_type: "demo",
-        topic_summary: gap,
-        status: "pending",
-      }).then(({ error }: { error: unknown }) => { if (error) console.error("knowledge_gap insert", error); });
-    }
+    supabase.from("maya_demo_messages").insert({
+      session_id: sessionId,
+      user_message: lastUser,
+      maya_reply: reply,
+    }).then(({ error }: { error: unknown }) => { if (error) console.error("log insert", error); });
 
     return new Response(JSON.stringify({ reply }), { headers });
   } catch (e) {
