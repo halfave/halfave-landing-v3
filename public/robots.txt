@@ -1,5 +1,51 @@
 User-agent: *
 Allow: /
 
+# AI answer engines are an intended distribution channel. The wildcard above
+# already permits them; these entries exist so nobody adds a Disallow later
+# without noticing. None of the major AI crawlers execute JavaScript, so the
+# blog is prerendered to static HTML at build time (scripts/prerender.mjs).
+
+# OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Google Gemini training and grounding. Separate from Googlebot; does not
+# affect Search ranking either way.
+User-agent: Google-Extended
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Allow: /
+
+# Common Crawl, which feeds many training sets
+User-agent: CCBot
+Allow: /
+
 Sitemap: https://halfave.co/sitemap.xml
 Sitemap: https://halfave.co/sitemap-marketing.xml
+Sitemap: https://halfave.co/sitemap-blog.xml

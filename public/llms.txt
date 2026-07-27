@@ -1,0 +1,24 @@
+# Half Ave
+
+> Half Ave builds Maya, an AI property manager for New York City owner-operators. Maya handles tenant communication, chases rent arrears, tracks the NYC compliance calendar per building, pulls in new HPD and DOB violations daily, and follows work orders through to close.
+
+Half Ave is built only for New York City. Coverage includes rent stabilization, CityFHEPS, Section 8, HPD and DOB violations, and the Local Law compliance calendar. Maya plugs into existing property management software rather than replacing it.
+
+## Field notes on running NYC buildings
+
+- [Half Ave vs. EliseAI](https://halfave.co/blog/half-ave-vs-eliseai): EliseAI chases arrears, and does it well. So does Maya. The real difference is three letters: NYC. Compliance, violations, and everything an assistant does beyond collections.
+- [How to Fire Your Property Management Company](https://halfave.co/blog/how-to-fire-your-property-management-company): The contract, the handover list, and the data migration almost nobody plans for. Notes from overseeing two management transitions and several software migrations.
+- [Property Management Fees in NYC: What You Pay, and the Ratio That Matters More](https://halfave.co/blog/property-management-fees-nyc): NYC rental buildings typically run 4 to 8 percent of collected rent, well below the national average. Why that is, which fee models to distrust, and the number that predicts service better than price does.
+- [Should I Self-Manage My Property?](https://halfave.co/blog/self-manage-vs-property-management-company): What a NYC management company actually costs, what the fee quietly excludes, and why the model is built to work at a scale where service falls apart.
+- [CityFHEPS for NYC Landlords: A Comprehensive Guide](https://halfave.co/blog/cityfheps-landlord-guide): The 2026 CityFHEPS payment standards went down. What the program actually pays NYC owners, the late fee rule almost everyone gets wrong, and the five-business-day notifications that get landlords disqualified.
+- [What Is a Virtual Property Manager? A Definition Worth Being Precise About](https://halfave.co/blog/what-is-a-virtual-property-manager): Not a chatbot, not property management software, not an offshore assistant, not a management company. What a virtual property manager actually is, what it does, and where it stops.
+- [Why Property Managers Never Respond](https://halfave.co/blog/why-property-managers-dont-respond): A 24-to-48hr reply time and 9-5 office hours are the property management standard. Here is the opportunity that creates.
+- [Actual Conversations Between Tenants and AI](https://halfave.co/blog/real-conversations-with-maya): Eight real exchanges between Maya and real residents in real NYC buildings. Arrears, insurance, a failed payment, a CityFHEPS voucher, and the moment she stops and asks a human.
+- [I Read 100 Conversations Between My Tenants and an AI. Here Is What Surprised Me.](https://halfave.co/blog/i-watched-100-conversations-ai-property-manager): I expected to grade a chatbot. Instead I found something that starts the conversation, carries the relentless eighty percent, and knows the exact moment to hand the resident to a human.
+- [Does an AI Property Manager Actually Work? Here Is the Honest Answer](https://halfave.co/blog/does-ai-property-manager-work): Most AI product pages pretend the software has no limits. Where Maya earns her keep for NYC owner-operators, where she stops cold, and why the second list is the reason to trust the first.
+
+## Contact
+
+- [Half Ave](https://halfave.co): Product overview and real anonymized conversations between Maya and residents
+- Email: hello@halfave.co
+

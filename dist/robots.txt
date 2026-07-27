@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://halfave.co/sitemap.xml
-Sitemap: https://halfave.co/sitemap-marketing.xml
