@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx playwright install chromium && npm run build:prod",
   "rewrites": [
     { "source": "/sitemap.xml",            "destination": "https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/sitemap" },
     { "source": "/buildings/:slug",        "destination": "/index.html" },
