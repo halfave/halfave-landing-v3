@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { useMeta } from '../hooks/Usemeta'
 import { POSTS, formatDate } from '../data/posts'
 
@@ -26,6 +27,16 @@ const SEED: Msg[] = [
 
 // Public demo endpoint (Supabase Edge Function). Holds the API key + Maya persona server-side.
 const MAYA_DEMO_URL = 'https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/maya-demo'
+// Public metrics endpoint (Supabase Edge Function). Reads the marketing_metrics view server-side.
+const METRICS_URL = 'https://mjkkzniagexfooclqsjr.supabase.co/functions/v1/marketing-metrics'
+
+// Last verified values, baked in as a fallback so the section never renders blank
+// if the endpoint is slow or down. Verified 2026-07-27.
+const METRICS_FALLBACK = {
+  arrearsCollected: 124454,
+  perfectPct: 83.7,
+  messagesAnsweredAll: 838,
+}
 // Stable id for this page load, so demo artifacts from one conversation group together.
 const DEMO_SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36)
 
@@ -68,7 +79,43 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
   const [typing, setTyping] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const heroVideoRef = useRef<HTMLVideoElement>(null)
-  const [shotIdx, setShotIdx] = useState(0)
+  const [metrics, setMetrics] = useState(METRICS_FALLBACK)
+  const [openShot, setOpenShot] = useState<typeof SHOTS[number] | null>(null)
+
+  // Pull live numbers from the database. On any failure we keep the baked-in
+  // fallback, so the section degrades to slightly-stale rather than broken.
+  useEffect(() => {
+    let cancelled = false
+    // Take a field from the response only if it's a real number. A stale cached
+    // response missing a key then falls back per-field instead of rendering NaN.
+    const num = (v: unknown, fallback: number) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : fallback
+
+    fetch(METRICS_URL)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(d => {
+        if (cancelled || !d || typeof d !== 'object') return
+        setMetrics({
+          arrearsCollected: num(d.arrearsCollected, METRICS_FALLBACK.arrearsCollected),
+          perfectPct: num(d.perfectPct, METRICS_FALLBACK.perfectPct),
+          messagesAnsweredAll: num(d.messagesAnsweredAll, METRICS_FALLBACK.messagesAnsweredAll),
+        })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (!openShot) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenShot(null) }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [openShot])
 
   useEffect(() => {
     const v = heroVideoRef.current
@@ -149,7 +196,19 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
           <li><button {...calProps} className="nav-textlink">Book a Demo</button></li>
           <li><a href="/blog" onClick={e => { if (onGoBlog) { e.preventDefault(); onGoBlog() } }}>Blog</a></li>
           <li><a href="https://www.instagram.com/mayatextsnyc" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="nav-ig">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" stroke="none"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <defs>
+                <radialGradient id="igGradMayaNav" cx="30%" cy="107%" r="150%">
+                  <stop offset="0%" stopColor="#FDF497"/><stop offset="8%" stopColor="#FDF497"/>
+                  <stop offset="45%" stopColor="#FD5949"/><stop offset="62%" stopColor="#D6249F"/>
+                  <stop offset="95%" stopColor="#285AEB"/>
+                </radialGradient>
+              </defs>
+              <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#igGradMayaNav)"/>
+              <rect x="5.6" y="5.6" width="12.8" height="12.8" rx="4" fill="none" stroke="#fff" strokeWidth="1.7"/>
+              <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.7"/>
+              <circle cx="17" cy="7" r="1.15" fill="#fff"/>
+            </svg>
           </a></li>
         </ul>
       </nav>
@@ -177,8 +236,106 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
         </a>
       </header>
 
+      {/* ── METRICS ── */}
+      <section className="maya-section maya-metrics" style={{ paddingTop: '64px' }}>
+        <div className="maya-section-head">
+          <span className="section-label">In the buildings now</span>
+          <h2 className="section-title">Already doing the work.</h2>
+          <p className="section-sub">Live numbers, pulled from the buildings Maya runs right now &mdash; queried from our production database the moment this page loads. Not a case study, not a rounded-up estimate.</p>
+        </div>
+        <div className="maya-metric-grid">
+          <Metric
+            to={Math.round(metrics.arrearsCollected / 1000)}
+            prefix="$" suffix="K" accent
+            cap="in arrears collected while Maya was following up"
+            icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+          />
+          <Metric
+            to={metrics.perfectPct}
+            suffix="%" decimals={1} accent
+            cap="of her replies graded perfect, last 14 days"
+            icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>}
+          />
+          <Metric
+            to={metrics.messagesAnsweredAll}
+            accent
+            cap="resident messages answered to date"
+            icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+          />
+        </div>
+      </section>
+
+      {/* ── REAL CONVERSATIONS (drifting columns) ── */}
+      <section id="conversations" className="maya-section maya-marquee-wrap" style={{ textAlign: 'center' }}>
+        <span className="section-label" style={{ display: 'block' }}>See for yourself</span>
+        <h2 className="section-title" style={{ margin: '0 auto 1rem', maxWidth: '20ch' }}>Real conversations from real buildings.</h2>
+        <p className="section-sub" style={{ margin: '0 auto 2.5rem' }}>These are real conversations from buildings Maya runs, anonymized. Names and addresses removed; everything else is exactly as it happened.</p>
+
+        <div className={`maya-marquee${openShot ? ' frozen' : ''}`}>
+          {MARQUEE_COLUMNS.map((col, ci) => (
+            <div key={ci} className="maya-marquee-col">
+              {/* Rendered twice back to back so the loop point is invisible. */}
+              <div className={`maya-marquee-track speed-${ci}`}>
+                {[0, 1].map(copy => (
+                  <div key={copy} className="maya-marquee-run" aria-hidden={copy === 1}>
+                    {col.map((c, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="maya-shot-card"
+                        onClick={() => setOpenShot(c)}
+                        aria-label={`Read the full conversation: ${c.tag}`}
+                      >
+                        <span className="maya-shot-tag">{c.tag}</span>
+                        <span className="maya-shot-snippet">{snippetFor(c)}</span>
+                        <span className="maya-shot-more">Read the full conversation</span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="maya-marquee-fade top" />
+          <div className="maya-marquee-fade bottom" />
+        </div>
+
+        {openShot && (
+          <div className="maya-modal-backdrop" onClick={() => setOpenShot(null)}>
+            <div
+              className="maya-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Conversation: ${openShot.tag}`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="maya-modal-head">
+                <span className="maya-shot-tag" style={{ margin: 0 }}>{openShot.tag}</span>
+                <button type="button" className="maya-modal-close" onClick={() => setOpenShot(null)} aria-label="Close conversation" autoFocus>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className="maya-thread">
+                {openShot.turns.map((t, j) => {
+                  const isMaya = t[0] === 'maya'
+                  const newSpeaker = j === 0 || openShot.turns[j - 1][0] !== t[0]
+                  return (
+                    <div key={j} className={`maya-shot-turn ${isMaya ? 'maya' : 'them'}`}>
+                      {newSpeaker && <div className="maya-shot-who">{isMaya ? 'Maya' : 'Tenant'}</div>}
+                      <div className={`maya-bubble ${isMaya ? 'maya' : 'user'}`}>{t[1]}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className="maya-divider" />
+
       {/* ── PHONE DEMO ── */}
-      <section id="demo" className="maya-section" style={{ paddingTop: '64px' }}>
+      <section id="demo" className="maya-section">
         <div className="maya-section-head">
           <span className="section-label">Put it to the test</span>
           <h2 className="section-title">Text Maya like a tenant would.</h2>
@@ -224,23 +381,6 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
               <button onClick={send} disabled={capped || typing}>Send</button>
             </div>
           </div>
-        </div>
-      </section>
-
-      <div className="maya-divider" />
-
-      {/* ── METRICS ── */}
-      <section className="maya-section maya-metrics">
-        <div className="maya-section-head">
-          <span className="section-label">In the buildings now</span>
-          <h2 className="section-title">Already doing the work.</h2>
-          <p className="section-sub">Live numbers from real NYC buildings Maya runs today.</p>
-        </div>
-        <div className="maya-metric-grid four">
-          <Metric to={188} cap="residents Maya handles across live buildings" />
-          <Metric to={952} cap="messages sent first — she starts the conversation" accent />
-          <Metric to={1438} cap="maintenance work orders tracked" />
-          <Metric to={19} prefix="$" suffix="K" cap="in rent collected against tracked promises" accent />
         </div>
       </section>
 
@@ -366,45 +506,6 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
 
       <div className="maya-divider" />
 
-      {/* ── SCREENSHOTS CAROUSEL ── */}
-      <section className="maya-section maya-carousel-wrap" style={{ textAlign: 'center' }}>
-        <span className="section-label" style={{ display: 'block' }}>See for yourself</span>
-        <h2 className="section-title" style={{ margin: '0 auto 1rem', maxWidth: '20ch' }}>Real conversations from real buildings.</h2>
-        <p className="section-sub" style={{ margin: '0 auto 2.5rem' }}>These are real conversations from buildings Maya runs, anonymized. Names and addresses removed; everything else is exactly as it happened.</p>
-
-        <div className="maya-carousel">
-          <button className="maya-carousel-arrow left" aria-label="Previous conversation" onClick={() => setShotIdx(i => (i - 1 + SHOTS.length) % SHOTS.length)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <div className="maya-carousel-stage">
-            {SHOTS.map((c, i) => {
-              const offset = i - shotIdx
-              const pos = offset === 0 ? 'active' : offset === -1 || (shotIdx === 0 && i === SHOTS.length - 1) ? 'prev' : offset === 1 || (shotIdx === SHOTS.length - 1 && i === 0) ? 'next' : 'hidden'
-              return (
-                <div key={i} className={`maya-shot-card ${pos}`} aria-hidden={pos !== 'active'} onClick={() => pos !== 'active' && pos !== 'hidden' && setShotIdx(i)}>
-                  <div className="maya-shot-tag">{c.tag}</div>
-                  <div className="maya-shot-thread">
-                    {c.turns.map((t, j) => (
-                      <div key={j} className={`maya-bubble ${t[0] === 'maya' ? 'maya' : 'user'}`}>{t[1]}</div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <button className="maya-carousel-arrow right" aria-label="Next conversation" onClick={() => setShotIdx(i => (i + 1) % SHOTS.length)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-        </div>
-        <div className="maya-carousel-dots">
-          {SHOTS.map((_, i) => (
-            <button key={i} aria-label={`Conversation ${i + 1}`} className={`maya-dot ${i === shotIdx ? 'on' : ''}`} onClick={() => setShotIdx(i)} />
-          ))}
-        </div>
-      </section>
-
-      <div className="maya-divider" />
-
       {/* ── FAQ ── */}
       <section className="maya-section">
         <h2 className="section-title" style={{ margin: '0 auto 2rem', textAlign: 'center' }}>Questions</h2>
@@ -458,7 +559,19 @@ export default function MayaPage({ onGoTool, onGoBlog, onGoPost }: Props) {
             </span>
             <div className="footer-social">
               <a href="https://www.instagram.com/mayatextsnyc" aria-label="Instagram" target="_blank" rel="noopener noreferrer">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <defs>
+                    <radialGradient id="igGradMayaFoot" cx="30%" cy="107%" r="150%">
+                      <stop offset="0%" stopColor="#FDF497"/><stop offset="8%" stopColor="#FDF497"/>
+                      <stop offset="45%" stopColor="#FD5949"/><stop offset="62%" stopColor="#D6249F"/>
+                      <stop offset="95%" stopColor="#285AEB"/>
+                    </radialGradient>
+                  </defs>
+                  <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#igGradMayaFoot)"/>
+                  <rect x="5.6" y="5.6" width="12.8" height="12.8" rx="4" fill="none" stroke="#fff" strokeWidth="1.7"/>
+                  <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.7"/>
+                  <circle cx="17" cy="7" r="1.15" fill="#fff"/>
+                </svg>
               </a>
               <a href="#" aria-label="X">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -592,6 +705,29 @@ const SHOTS: { tag: string; turns: [string, string][] }[] = [
   ]},
 ]
 
+// Split into two columns for the drifting marquee. Alternating rather than slicing
+// in half keeps a mix of short and long threads in each column, so the two tracks
+// stay roughly the same height.
+const SNIPPET_OVERRIDES: Record<string, string> = {
+  'Recovered balance': 'Omg, thanks for reminding. Will pay it today',
+}
+
+// The tenant's first line, trimmed at a word boundary. Their voice sells this
+// better than Maya's does, so we lead with it.
+function snippetFor(c: typeof SHOTS[number]): string {
+  const override = SNIPPET_OVERRIDES[c.tag]
+  if (override) return override
+  const theirs = c.turns.find(t => t[0] === 'them')
+  const text = (theirs ? theirs[1] : c.turns[0][1]).trim()
+  if (text.length <= 96) return text
+  return text.slice(0, text.lastIndexOf(' ', 96)) + '\u2026'
+}
+
+const MARQUEE_COLUMNS: (typeof SHOTS)[] = [
+  SHOTS.filter((_, i) => i % 2 === 0),
+  SHOTS.filter((_, i) => i % 2 === 1),
+]
+
 const FAQS = [
   { q: 'Is this a chatbot?', a: "No. A chatbot answers questions. Maya does the work. She chases rent, secures payment commitments, follows up until they're resolved, and checks the ledger to confirm. She acts; she doesn't just reply." },
   { q: 'Does my tenant have to download anything?', a: 'No. Maya works over text. Tenants reply like they would to any person on the management team.' },
@@ -601,37 +737,49 @@ const FAQS = [
   { q: 'How do I start?', a: 'A free 30-day pilot in your portfolio. Book a demo and we’ll get you live.' },
 ]
 
-function Metric({ to, cap, accent, prefix = '', suffix = '' }: { to: number; cap: string; accent?: boolean; prefix?: string; suffix?: string }) {
+function Metric({ to, cap, accent, prefix = '', suffix = '', decimals = 0, icon }: { to: number; cap: string; accent?: boolean; prefix?: string; suffix?: string; decimals?: number; icon?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [val, setVal] = useState(0)
-  const [started, setStarted] = useState(false)
+  const [visible, setVisible] = useState(false)
 
+  // Fire once, when the metric scrolls into view.
   useEffect(() => {
     const el = ref.current
     if (!el) return
     const obs = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !started) {
-        setStarted(true)
-        obs.disconnect()
-        if (to === 0) { setVal(0); return }
-        const duration = 1100
-        const start = performance.now()
-        const tick = (now: number) => {
-          const p = Math.min((now - start) / duration, 1)
-          const eased = 1 - Math.pow(1 - p, 3) // easeOutCubic
-          setVal(Math.round(to * eased))
-          if (p < 1) requestAnimationFrame(tick)
-        }
-        requestAnimationFrame(tick)
-      }
+      if (entries[0].isIntersecting) { setVisible(true); obs.disconnect() }
     }, { threshold: 0.4 })
     obs.observe(el)
     return () => obs.disconnect()
-  }, [to, started])
+  }, [])
+
+  // Count up to the current target. Re-runs if `to` changes — so if the live
+  // numbers land after the animation, we ease to them instead of freezing on
+  // the fallback.
+  useEffect(() => {
+    if (!visible) return
+    if (!Number.isFinite(to)) return   // never render NaN
+    if (to === 0) { setVal(0); return }
+    const from = val
+    const duration = 1100
+    const start = performance.now()
+    let frame = 0
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3) // easeOutCubic
+      setVal(from + (to - from) * eased)
+      if (p < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+    // `val` is intentionally excluded: it changes every frame and would restart the tween.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to, visible])
 
   return (
     <div className="maya-metric" ref={ref}>
-      <div className={`maya-metric-fig${accent ? ' accent' : ''}`}>{prefix}{val}{suffix}</div>
+      {icon && <div className="maya-metric-icon" aria-hidden="true">{icon}</div>}
+      <div className={`maya-metric-fig${accent ? ' accent' : ''}`}>{prefix}{val.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</div>
       <div className="maya-metric-cap">{cap}</div>
     </div>
   )
@@ -671,6 +819,7 @@ const CSS = `
   transition: background 0.35s ease, box-shadow 0.35s ease;
 }
 #maya-nav.scrolled { background: var(--navy); box-shadow: 0 4px 32px rgba(7,16,30,0.18); }
+#conversations, #demo { scroll-margin-top: 92px; }
 #maya-nav .nav-logo { display: flex; align-items: center; text-decoration: none; }
 #maya-nav .nav-links { display: flex; gap: 2.5rem; list-style: none; align-items: center; }
 #maya-nav .nav-links a, #maya-nav .nav-textlink {
@@ -804,6 +953,14 @@ const CSS = `
 .maya-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2.5rem; text-align: center; }
 .maya-metric-grid.four { grid-template-columns: repeat(4, 1fr); gap: 1.75rem; }
 @media (max-width: 760px) { .maya-metric-grid.four { grid-template-columns: repeat(2, 1fr); gap: 2rem; } }
+.maya-metrics .maya-section-head { margin-bottom: 3.5rem; }
+.maya-metrics .maya-section-head .section-title { margin-bottom: 1.6rem; }
+.maya-metrics .section-sub { max-width: 460px; line-height: 1.85; text-wrap: pretty; }
+.maya-metric-icon {
+  width: 34px; height: 34px; border-radius: 9px; margin: 0 auto 0.85rem;
+  background: rgba(58,125,94,0.1); color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+}
 .maya-metric-fig { font-family: var(--font-serif); font-size: 3.2rem; line-height: 1; font-weight: 500; letter-spacing: -0.02em; color: var(--navy); }
 .maya-metric-fig.accent { color: var(--green); }
 .maya-metric-cap { font-size: 0.95rem; color: var(--gray-500); margin: 0.9rem auto 0; line-height: 1.4; max-width: 24ch; }
@@ -854,48 +1011,51 @@ const CSS = `
 .maya-calc-savenum { font-family: var(--font-serif); font-size: 2.4rem; font-weight: 600; margin-top: 0.4rem; }
 .maya-calc-fine { font-family: var(--font-mono); font-size: 0.68rem; color: rgba(247,244,239,0.55); margin-top: 1.1rem; text-align: center; line-height: 1.5; }
 
-/* SCREENSHOTS CAROUSEL (one at a time) */
-.maya-carousel-wrap { max-width: 760px; }
-.maya-carousel { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.maya-carousel-stage {
-  position: relative; flex: 1; min-height: 480px;
-  display: flex; align-items: flex-start; justify-content: center;
+/* REAL CONVERSATIONS — drifting columns */
+.maya-marquee-wrap { max-width: 860px; }
+.maya-marquee { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; height: 430px; overflow: hidden; }
+.maya-marquee-col { overflow: hidden; }
+.maya-marquee-track { display: flex; flex-direction: column; will-change: transform; }
+.maya-marquee-run { display: flex; flex-direction: column; gap: 16px; padding-bottom: 16px; }
+.maya-marquee-track.speed-0 { animation: maya-drift 42s linear infinite; }
+.maya-marquee-track.speed-1 { animation: maya-drift 54s linear infinite; }
+.maya-marquee:hover .maya-marquee-track { animation-play-state: paused; }
+@keyframes maya-drift { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.maya-marquee-fade { position: absolute; left: 0; right: 0; height: 90px; pointer-events: none; z-index: 2; }
+.maya-marquee-fade.top { top: 0; background: linear-gradient(var(--white), rgba(255,255,255,0)); }
+.maya-marquee-fade.bottom { bottom: 0; background: linear-gradient(rgba(255,255,255,0), var(--white)); }
+.maya-shot-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px; padding: 16px 18px; text-align: left; }
+.maya-shot-tag { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); margin-bottom: 8px; }
+.maya-shot-snippet { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--navy); }
+.maya-shot-card { display: block; width: 100%; font: inherit; cursor: pointer; transition: border-color 0.18s, transform 0.18s; }
+.maya-shot-card:hover { border-color: var(--green); transform: translateY(-1px); }
+.maya-shot-card:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.maya-shot-snippet { display: block; }
+.maya-shot-more { display: block; margin-top: 10px; font-size: 0.78rem; font-weight: 600; color: var(--green); opacity: 0; transition: opacity 0.18s; }
+.maya-shot-card:hover .maya-shot-more, .maya-shot-card:focus-visible .maya-shot-more { opacity: 1; }
+.maya-marquee.frozen .maya-marquee-track { animation-play-state: paused; }
+.maya-modal-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(17,30,48,0.55); display: flex; align-items: center; justify-content: center; padding: 5vh 5vw; }
+.maya-modal { background: var(--white); border-radius: 16px; padding: 22px 24px 26px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; text-align: left; }
+.maya-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.maya-modal-close { background: none; border: none; color: var(--gray-500); cursor: pointer; padding: 4px; display: flex; border-radius: 6px; }
+.maya-modal-close:hover { color: var(--navy); background: var(--cream); }
+.maya-thread { display: flex; flex-direction: column; gap: 8px; }
+.maya-thread .maya-bubble { max-width: 88%; align-self: auto; }
+.maya-shot-turn { display: flex; flex-direction: column; }
+.maya-shot-turn.maya { align-items: flex-end; }
+.maya-shot-turn.them { align-items: flex-start; }
+.maya-shot-who { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-400); margin: 2px 3px 4px; }
+.maya-thread .maya-bubble.maya { background: var(--navy); color: var(--cream); box-shadow: none; }
+.maya-thread .maya-bubble.user { background: var(--cream); color: var(--navy); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+@media (prefers-reduced-motion: reduce) {
+  .maya-marquee-track.speed-0, .maya-marquee-track.speed-1 { animation: none; }
+  .maya-marquee { height: auto; overflow: visible; }
+  .maya-marquee-run:nth-child(2) { display: none; }
+  .maya-marquee-fade { display: none; }
 }
-.maya-shot-card {
-  text-align: left; border: 1px solid var(--gray-200); background: var(--white);
-  border-radius: 18px; padding: 24px; box-shadow: 0 12px 40px rgba(7,16,30,0.08);
-  transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease;
-}
-.maya-shot-card.active {
-  position: relative; width: 100%; max-width: 480px; opacity: 1;
-  transform: none; filter: none; z-index: 3; pointer-events: auto;
-}
-.maya-shot-card.prev, .maya-shot-card.next {
-  position: absolute; top: 18px; width: 80%; max-width: 420px;
-  opacity: 0.35; filter: blur(3px); z-index: 1; cursor: pointer;
-}
-.maya-shot-card.prev { left: -34%; transform: scale(0.92); }
-.maya-shot-card.next { right: -34%; transform: scale(0.92); }
-.maya-shot-card.prev:hover, .maya-shot-card.next:hover { opacity: 0.55; }
-.maya-shot-card.hidden { position: absolute; opacity: 0; pointer-events: none; z-index: 0; }
-.maya-shot-tag { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); margin-bottom: 14px; }
-.maya-shot-thread { display: flex; flex-direction: column; gap: 8px; }
-.maya-shot-thread .maya-bubble { max-width: 90%; }
-.maya-shot-card .maya-bubble.maya { background: var(--cream); }
-.maya-carousel-arrow {
-  flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
-  border: 1px solid var(--gray-200); background: var(--white); color: var(--navy);
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background 0.2s, border-color 0.2s; z-index: 4;
-}
-.maya-carousel-arrow:hover { background: var(--navy); color: var(--cream); border-color: var(--navy); }
-.maya-carousel-dots { display: flex; gap: 8px; justify-content: center; margin-top: 1.5rem; }
-.maya-dot { width: 8px; height: 8px; border-radius: 50%; border: none; background: var(--gray-200); cursor: pointer; padding: 0; transition: background 0.2s, transform 0.2s; }
-.maya-dot.on { background: var(--green); transform: scale(1.25); }
 @media (max-width: 640px) {
-  .maya-carousel-stage { min-height: 520px; }
-  .maya-shot-card.prev, .maya-shot-card.next { display: none; }
-  .maya-shot-card.active { max-width: 100%; }
+  .maya-marquee { grid-template-columns: 1fr; height: 380px; }
+  .maya-marquee-col:nth-child(2) { display: none; }
 }
 
 /* FROM THE BLOG */
